@@ -131,62 +131,63 @@ class Order_Queue(object):
 
         if mo.trade_type == 'Bid':
             target_order_list = self.active_list[mo.stock_code]['Ask']
-            target_order_sorted = list(target_order_list)
-            target_order_sorted.sort(key=lambda x: x.price)
+            target_order_sorted=tuple(sorted(target_order_list,key=lambda x:x.price))
         else:
             target_order_list = self.active_list[mo.stock_code]['Bid']
-            target_order_sorted = list(target_order_list)
-            target_order_sorted.sort(key=lambda x: x.price, reverse=True)
+            target_order_sorted=tuple(sorted(target_order_list,key=lambda x:x.price,reverse=True))
         # Match!
         match_list = []
         # trade_type_new='Bid' if mo.trade_type=='Ask' else 'Ask'
         for o in target_order_sorted:
-            if mo.username!=o.username:
-                if mo.flavor == "allornone" and o.flavor == "allornone":
-                    if mo.quantity == o.quantity :
-                        match_list.append([o,mo,o.price,o.quantity])
-                        target_order_list.remove(o)
-                        # target_order_list=[x for x in target_order_list if x!=o]
-                        # self.active_list[mo.stock_code][trade_type_new].remove(o)
-                        break
-                elif mo.flavor == "partial" and o.flavor == "allornone":
-                    if mo.quantity >= o.quantity:
-                        match_list.append([o,mo,o.price,o.quantity])
-                        mo.quantity = mo.quantity - o.quantity
-                        target_order_list.remove(o)
-                        # target_order_list=[x for x in target_order_list if x!=o]
-                        # self.active_list[mo.stock_code][trade_type_new].remove(o)
-                        if mo.quantity == 0:
-                            self.active_list[mo.stock_code][mo.trade_type].remove(mo)
-                            break
-                elif mo.flavor == "allornone" and o.flavor == "partial":
-                    if mo.quantity <= o.quantity:
-                        match_list.append([o,mo,o.price,mo.quantity])
-                        o.quantity = o.quantity - mo.quantity
-                        if o.quantity == 0:
-                            target_order_list.remove(o)
-                            # target_order_list=[x for x in target_order_list if x!=o]
-                            # self.active_list[mo.stock_code][trade_type_new].remove(o)
-                            #target_order_list=[x for x in target_order_list if x!=o]
-                        break
-                elif mo.flavor == "partial" and o.flavor == "partial":
-                    if mo.quantity <= o.quantity:
-                        match_list.append([o,mo,o.price,mo.quantity])
-                        o.quantity = o.quantity - mo.quantity
-                        if o.quantity == 0:
-                            target_order_list.remove(o)
-                            # target_order_list=[x for x in target_order_list if x!=o]
-                            # self.active_list[mo.stock_code][trade_type_new].remove(o)
-                            #target_order_list=[x for x in target_order_list if x!=o]
-                        self.active_list[mo.stock_code][mo.trade_type].remove(mo)
-                        break
-                    else:
-                        match_list.append([o,mo,o.price,o.quantity])
-                        mo.quantity = mo.quantity - o.quantity
+#           If usernames match , do nothing.
+            if mo.username==o.username:
+                continue
+#           If both are 'allornone' and both can get fully matched , match.
+            if mo.flavor == "allornone" and o.flavor == "allornone" and mo.quantity == o.quantity:
+                match_list.append([o,mo,o.price,o.quantity])
+                target_order_list.remove(o)
+                # target_order_list=[x for x in target_order_list if x!=o]
+                # self.active_list[mo.stock_code][trade_type_new].remove(o)
+                break
+#           If our order is 'partial' and the opposite is 'allornone' and we can match it fully , match.
+            elif mo.flavor == "partial" and o.flavor == "allornone" and mo.quantity >= o.quantity:
+                match_list.append([o,mo,o.price,o.quantity])
+                mo.quantity = mo.quantity - o.quantity
+                target_order_list.remove(o)
+                # target_order_list=[x for x in target_order_list if x!=o]
+                # self.active_list[mo.stock_code][trade_type_new].remove(o)
+                if mo.quantity == 0:
+                    self.active_list[mo.stock_code][mo.trade_type].remove(mo)
+                    break
+#           If our order is 'allornone' and the opposite is 'partial' and it can match us fully , match.
+            elif mo.flavor == "allornone" and o.flavor == "partial" and mo.quantity <= o.quantity:
+                match_list.append([o,mo,o.price,mo.quantity])
+                o.quantity = o.quantity - mo.quantity
+                if o.quantity == 0:
+                    target_order_list.remove(o)
+                    # target_order_list=[x for x in target_order_list if x!=o]
+                    # self.active_list[mo.stock_code][trade_type_new].remove(o)
+                    #target_order_list=[x for x in target_order_list if x!=o]
+                break
+#           If both are 'partial' , we have to juggle the quantities.
+            elif mo.flavor == "partial" and o.flavor == "partial":
+                if mo.quantity <= o.quantity:
+                    match_list.append([o,mo,o.price,mo.quantity])
+                    o.quantity = o.quantity - mo.quantity
+                    if o.quantity == 0:
                         target_order_list.remove(o)
                         # target_order_list=[x for x in target_order_list if x!=o]
                         # self.active_list[mo.stock_code][trade_type_new].remove(o)
                         #target_order_list=[x for x in target_order_list if x!=o]
+                    self.active_list[mo.stock_code][mo.trade_type].remove(mo)
+                    break
+                else:
+                    match_list.append([o,mo,o.price,o.quantity])
+                    mo.quantity = mo.quantity - o.quantity
+                    target_order_list.remove(o)
+                    # target_order_list=[x for x in target_order_list if x!=o]
+                    # self.active_list[mo.stock_code][trade_type_new].remove(o)
+                    #target_order_list=[x for x in target_order_list if x!=o]
 
         # Return null on unsuccessful matching
         if mo in self.active_list[mo.stock_code][mo.trade_type]:
